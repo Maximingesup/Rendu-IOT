@@ -8,7 +8,9 @@
 NetworkInterface *net;
 
 int arrivedcount = 0;
-const char* topic = "Kimuno/feeds/temperature";
+const char* topic1 = "Kimuno/feeds/temperature";
+const char* topic2 = "Kimuno/feeds/taux-dhumidite";
+const char* topic3 = "Kimuno/feeds/led";
 static DigitalOut led1(LED1);
 I2C i2c(I2C1_SDA, I2C1_SCL);
 uint8_t lm75_adress = 0x48 << 1;
@@ -93,35 +95,53 @@ int main() {
        	float temperature = ((cmd[0] << 8 | cmd[1] ) >> 7) * 0.5;
        	printf("Temperature : %f\n", temperature);
 
- /*      	MQTT::Message message;
+       	MQTT::Message message;
 
            printf("Alive!\n");
 
            char buf1[100];
-              printf(buf1, temperature);
+
+              sprintf(buf1, "%f", temperature);
 
               message.qos = MQTT::QOS0;
               message.retained = false;
               message.dup = false;
               message.payload = (void*)buf1;
               message.payloadlen = strlen(buf1)+1;
-              rc = client.publish(topic, message);
-              ThisThread::sleep_for(1000);*/
+              rc = client.publish(topic1, message);
+
+              // Send a message with QoS 0
+              MQTT::Message message;
+
+              // QoS 0
+              char buf[100];
+              sprintf(buf, "Hello World!  QoS 0 message from 6TRON\r\n");
+
+              message.qos = MQTT::QOS0;
+              message.retained = false;
+              message.dup = false;
+              message.payload = (void*)buf;
+              message.payloadlen = strlen(buf)+1;
+              rc = client.publish(topic2, message);
+
+              ThisThread::sleep_for(10000);
+
+
+             MQTT::Message message;
+
+             // QoS 0
+            char buf[100];
+            sprintf(buf, "Hello World!  QoS 0 message from 6TRON\r\n");
+
+            message.qos = MQTT::QOS0;
+            message.retained = false;
+            message.dup = false;
+            message.payload = (void*)buf;
+            message.payloadlen = strlen(buf)+1;
+            rc = client.publish(topic2, message);
        }
 
-    // Send a message with QoS 0
-    MQTT::Message message;
 
-    // QoS 0
-    char buf[100];
-    sprintf(buf, "Hello World!  QoS 0 message from 6TRON\r\n");
-
-    message.qos = MQTT::QOS0;
-    message.retained = false;
-    message.dup = false;
-    message.payload = (void*)buf;
-    message.payloadlen = strlen(buf)+1;
-    rc = client.publish(topic, message);
 
 
 
@@ -138,3 +158,4 @@ int main() {
     net->disconnect();
     printf("Done\n");
 }
+
