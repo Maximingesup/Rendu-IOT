@@ -9,11 +9,22 @@ NetworkInterface *net;
 
 int arrivedcount = 0;
 const char* topic = "Kimuno/feeds/temperature";
+static DigitalOut led1(LED1);
+I2C i2c(I2C1_SDA, I2C1_SCL);
+uint8_t lm75_adress = 0x48 << 1;
 
 /* Printf the message received and its configuration */
 void messageArrived(MQTT::MessageData& md)
 {
     MQTT::Message &message = md.message;
+    if (strcmp((const char *)md.message.payload, "ON") == 0) {
+    	printf("On a recu ON\n");
+    }
+    else  {
+
+
+    }
+    //md.message.payload
     printf("Message arrived: qos %d, retained %d, dup %d, packetid %d\r\n", message.qos, message.retained, message.dup, message.id);
     printf("Payload %.*s\r\n", message.payloadlen, (char*)message.payload);
     ++arrivedcount;
@@ -53,7 +64,7 @@ int main() {
     MQTT::Client<MQTTNetwork, Countdown> client(mqttNetwork);
 
     // Connect the socket to the MQTT Broker
-    const char* hostname = "fd9f:590a:b158:ffff:ffff::c0a8:0103";
+    const char* hostname = "io.adafruit.com";
     uint16_t port = 1883;
     printf("Connecting to %s:%d\r\n", hostname, port);
     int rc = mqttNetwork.connect(hostname, port);
@@ -73,6 +84,31 @@ int main() {
     if ((rc = client.subscribe(topic, MQTT::QOS2, messageArrived)) != 0)
         printf("rc from MQTT subscribe is %d\r\n", rc);
 
+    while (true) {
+       	char cmd[2];
+       	cmd[0] = 0x00; // adresse registre temperature
+       	i2c.write(lm75_adress, cmd, 1);
+       	i2c.read(lm75_adress, cmd, 2);
+
+       	float temperature = ((cmd[0] << 8 | cmd[1] ) >> 7) * 0.5;
+       	printf("Temperature : %f\n", temperature);
+
+ /*      	MQTT::Message message;
+
+           printf("Alive!\n");
+
+           char buf1[100];
+              printf(buf1, temperature);
+
+              message.qos = MQTT::QOS0;
+              message.retained = false;
+              message.dup = false;
+              message.payload = (void*)buf1;
+              message.payloadlen = strlen(buf1)+1;
+              rc = client.publish(topic, message);
+              ThisThread::sleep_for(1000);*/
+       }
+
     // Send a message with QoS 0
     MQTT::Message message;
 
@@ -85,8 +121,9 @@ int main() {
     message.dup = false;
     message.payload = (void*)buf;
     message.payloadlen = strlen(buf)+1;
-    include
     rc = client.publish(topic, message);
+
+
 
     // yield function is used to refresh the connexion
     // Here we yield until we receive the message we sent
@@ -100,3 +137,4 @@ int main() {
     // Bring down the 6LowPAN interface
     net->disconnect();
     printf("Done\n");
+}
