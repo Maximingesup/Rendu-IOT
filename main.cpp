@@ -12,24 +12,32 @@ const char* topic1 = "Kimuno/feeds/temperature";
 const char* topic2 = "Kimuno/feeds/taux-dhumidite";
 const char* topic3 = "Kimuno/feeds/led";
 static DigitalOut led1(LED1);
+AnalogIn ain(ADC_IN1);
 I2C i2c(I2C1_SDA, I2C1_SCL);
 uint8_t lm75_adress = 0x48 << 1;
 
 /* Printf the message received and its configuration */
 void messageArrived(MQTT::MessageData& md)
 {
+
     MQTT::Message &message = md.message;
-    if (strcmp((const char *)md.message.payload, "ON") == 0) {
-    	printf("On a recu ON\n");
-    }
-    else  {
-
-
-    }
-    //md.message.payload
-    printf("Message arrived: qos %d, retained %d, dup %d, packetid %d\r\n", message.qos, message.retained, message.dup, message.id);
+printf("Message arrived: qos %d, retained %d, dup %d, packetid %d\r\n", message.qos, message.retained, message.dup, message.id);
     printf("Payload %.*s\r\n", message.payloadlen, (char*)message.payload);
     ++arrivedcount;
+
+    char temp[20];
+    strncpy(temp, (char *) message.payload, message.payloadlen);
+
+    if (strcmp((const char *)temp, "ON") == 0) {
+    	printf("On a recu ON\n");
+    	led1=1;
+    }
+    else  {
+printf("OFF");
+    led1=0;
+    }
+    //md.message.payload
+
 }
 
 // MQTT demo
@@ -83,7 +91,7 @@ int main() {
         printf("rc from MQTT connect is %d\r\n", rc);
 
     // Subscribe to the same topic we will publish in
-    if ((rc = client.subscribe(topic, MQTT::QOS2, messageArrived)) != 0)
+    if ((rc = client.subscribe(topic3, MQTT::QOS1, messageArrived)) != 0)
         printf("rc from MQTT subscribe is %d\r\n", rc);
 
     while (true) {
@@ -95,7 +103,7 @@ int main() {
        	float temperature = ((cmd[0] << 8 | cmd[1] ) >> 7) * 0.5;
        	printf("Temperature : %f\n", temperature);
 
-       	MQTT::Message message;
+       	MQTT::Message Temperature;
 
            printf("Alive!\n");
 
@@ -103,31 +111,36 @@ int main() {
 
               sprintf(buf1, "%f", temperature);
 
-              message.qos = MQTT::QOS0;
-              message.retained = false;
-              message.dup = false;
-              message.payload = (void*)buf1;
-              message.payloadlen = strlen(buf1)+1;
-              rc = client.publish(topic1, message);
+              Temperature.qos = MQTT::QOS0;
+              Temperature.retained = false;
+              Temperature.dup = false;
+              Temperature.payload = (void*)buf1;
+              Temperature.payloadlen = strlen(buf1)+1;
+              rc = client.publish(topic1, Temperature);
 
               // Send a message with QoS 0
-              MQTT::Message message;
 
+              MQTT::Message Humidite;
               // QoS 0
               char buf[100];
-              sprintf(buf, "Hello World!  QoS 0 message from 6TRON\r\n");
+              float humidite= ((ain.read()-0)*100/(0.85-0));
 
-              message.qos = MQTT::QOS0;
-              message.retained = false;
-              message.dup = false;
-              message.payload = (void*)buf;
-              message.payloadlen = strlen(buf)+1;
-              rc = client.publish(topic2, message);
+              sprintf(buf,"%f", humidite);
 
-              ThisThread::sleep_for(10000);
+              Humidite.qos = MQTT::QOS0;
+              Humidite.retained = false;
+              Humidite.dup = false;
+              Humidite.payload = (void*)buf;
+              Humidite.payloadlen = strlen(buf)+1;
+              rc = client.publish(topic2, Humidite);
+              printf("%f", humidite);
+
+              client.yield(100);
+
+              ThisThread::sleep_for(5000);
 
 
-             MQTT::Message message;
+          /*   MQTT::Message message;
 
              // QoS 0
             char buf[100];
@@ -138,7 +151,7 @@ int main() {
             message.dup = false;
             message.payload = (void*)buf;
             message.payloadlen = strlen(buf)+1;
-            rc = client.publish(topic2, message);
+            rc = client.publish(topic2, message);*/
        }
 
 
@@ -152,6 +165,13 @@ int main() {
 
     // Disconnect client and socket
     client.disconnect();
+    mqttNetwork.disconnect();
+
+    // Bring down the 6LowPAN interface
+    net->disconnect();
+    printf("Done\n");
+}
+
     mqttNetwork.disconnect();
 
     // Bring down the 6LowPAN interface
